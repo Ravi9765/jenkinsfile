@@ -1,0 +1,21 @@
+pipeline {
+    agent any
+    stages {
+        stage ("git checkout") {
+            steps {
+                git credentialsId: 'ssh-login', url: 'https://github.com/Ravi9765/project-cicd.git'
+            }
+        }
+        stage ("build") {
+            steps {
+                sh "mvn clean package"
+                sh " mv target/*.war target/myweb.war"
+            }
+        }
+        stage ("copy war to server") {
+            steps {
+                sh "cp -r target/myweb.war /mnt/servers/apache-tomcat-10.0.0/webapps"
+            }
+        }
+    }
+}
