@@ -1,21 +1,49 @@
 pipeline {
     agent any
+
     stages {
-        stage ("git checkout") {
+
+        stage('jenkins backup') {
             steps {
-                git credentialsId: 'ssh-login', url: 'https://github.com/Ravi9765/project-cicd.git'
+                sh 'mkdir -p ${WORKSPACE}'
+
+                dir('/root/.jenkins') {
+                    sh '''
+                        zip -r ${WORKSPACE}/jenkinsbackup.zip .
+                    '''
+                }
             }
         }
-        stage ("build") {
+
+        stage('upload to s3 bucket') {
             steps {
-                sh "mvn clean package"
-                sh " mv target/*.war target/myweb.war"
-            }
-        }
-        stage ("copy war to server") {
-            steps {
-                sh "cp -r target/myweb.war /mnt/servers/apache-tomcat-10.0.0/webapps"
+                script {
+                    s3Upload(
+                        consoleLogLevel: 'INFO',
+                        dontSetBuildResultOnFailure: false,
+                        dontWaitForConcurrentBuildCompletion: false,
+                        entries: [[
+                            bucket: 'jenkinsbackup-mb1',
+                            excludedFile: '',
+                            flatten: false,
+                            gzipFiles: false,
+                            keepForever: false,
+                            managedArtifacts: false,
+                            noUploadOnFailure: false,
+                            selectedRegion: 'ap-south-1',
+                            showDirectlyInBrowser: false,
+                            sourceFile: 'jenkinsbackup.zip',
+                            storageClass: 'STANDARD',
+                            uploadFromSlave: false,
+                            useServerSideEncryption: false
+                        ]],
+                        pluginFailureResultConstraint: 'FAILURE',
+                        profileName: 's3-backup',
+                        userMetadata: []
+                    )
+                }
             }
         }
     }
 }
+
